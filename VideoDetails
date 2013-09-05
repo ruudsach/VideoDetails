@@ -1,0 +1,129 @@
+Public Function GetLastSelectedDir() As String
+
+    Dim strDir As String
+    On Error Resume Next
+    With Application.FileDialog(msoFileDialogFolderPicker)
+    If LastSelectedFolder <> vbNullString Then
+        .InitialFileName = LastSelectedFolder
+    Else
+        .InitialFileName = "C:\"
+    End If
+        .Show
+        strDir = .SelectedItems(1)
+    End With
+    
+    If Err Then Exit Function
+    On Error GoTo 0
+    
+    LastSelectedFolder = strDir
+    
+    GetLastSelectedDir = strDir
+
+End Function
+Public Function GetAllSubFolders(strFolderName As String) As Object
+
+    Dim objWMIService As Object
+    Dim SubFolders As Object
+    
+    Dim strComputer As String
+    strComputer = "."
+    
+    Set objWMIService = GetObject("winmgmts:\\" & strComputer & "\root\cimv2")
+    
+    Set SubFolders = objWMIService.ExecQuery _
+    ("Associators of {Win32_Directory.Name='" & strFolderName & "'} " _
+    & "Where AssocClass = Win32_Subdirectory " _
+    & "ResultRole = PartComponent")
+
+    Set GetAllSubFolders = SubFolders
+
+End Function
+Public Function UseFolderPath_for_WMI_CIM2(strFolderName As String) As String
+
+    Dim arrFolderPath As Variant
+    arrFolderPath = Split(strFolderName, "\")
+    Dim strNewPath As String
+    strNewPath = ""
+    Dim I As Long
+    For I = 1 To UBound(arrFolderPath)
+        strNewPath = strNewPath & "\\" & arrFolderPath(I)
+    Next
+    Dim strPath As String
+    strPath = strNewPath & "\\"
+    
+    UseFolderPath_for_WMI_CIM2 = strPath
+
+End Function
+Public Sub GetDetailsOf_VideoFiles()
+
+    Worksheets("FolderDetails").Activate
+    Dim ClearRange As Range
+    Set ClearRange = Application.Range(Range("A2"), ActiveSheet.UsedRange.SpecialCells(xlCellTypeLastCell))
+    ClearRange.ClearContents
+
+    Dim objWMIService As Object
+    Dim strComputer As String
+    strComputer = "."
+    
+    Dim Folder As Object
+    Dim VideoFiles As Object
+    Dim VideoFile As Object
+    PublicLong = 0
+    Set objWMIService = GetObject("winmgmts:\\" & strComputer & "\root\cimv2")
+    On Error Resume Next
+    For Each Folder In GetAllSubFolders(GetLastSelectedDir)
+        CallExtendedAttributes Folder.Name, PublicLong
+    Next Folder
+    On Error GoTo 0
+    PublicLong = 0
+    
+End Sub
+
+
+'Public Sub CallExtendedAttributes(VideoFileName As Object, VideoFilePath As String, ByVal i As Long)
+Public Sub CallExtendedAttributes(VideoFilePath As String, ByVal I As Long)
+
+    Dim objShell As Object
+    Dim objFolder As Object
+    Set objShell = CreateObject("Shell.Application")
+    Set objFolder = objShell.Namespace("" & VideoFilePath)
+    
+    Dim intermediateString As String
+    
+    Const ItemType = 2
+    Const PerceivedType = 11
+    Const Kind = 11
+    Const FolderResident = 176
+    Const VideoCompression = 280
+    Const Size = 1
+    Const Length = 27
+    Const Bitrate = 28
+    Const DataRate = 282
+    Const FrameHeight = 283
+    Const FrameWidth = 285
+    Const FrameRate = 284
+    
+    Dim VideoFileName
+    
+    For Each VideoFileName In objFolder.Items
+    
+    If objFolder.GetDetailsOf(VideoFileName, PerceivedType) = "Video" Then
+    Range("A2").Offset(I, 0).Value = objFolder.GetDetailsOf(VideoFileName, 0)
+    Range("A2").Offset(I, 1).Value = objFolder.GetDetailsOf(VideoFileName, Size)
+    Range("A2").Offset(I, 2).Value = objFolder.GetDetailsOf(VideoFileName, Length)
+    Range("A2").Offset(I, 3).Value = objFolder.GetDetailsOf(VideoFileName, Bitrate)
+    intermediateString = objFolder.GetDetailsOf(VideoFileName, DataRate)
+    Range("A2").Offset(I, 4).Value = Mid(intermediateString, 2, Len(intermediateString) - 5)
+    Range("A2").Offset(I, 5).Value = objFolder.GetDetailsOf(VideoFileName, FrameWidth) & "x" & objFolder.GetDetailsOf(VideoFileName, FrameHeight)
+    Range("A2").Offset(I, 6).Value = objFolder.GetDetailsOf(VideoFileName, FrameRate)
+    Range("A2").Offset(I, 7).Value = objFolder.GetDetailsOf(VideoFileName, FolderResident)
+    I = I + 1
+    End If
+    
+    Next VideoFileName
+    
+    PublicLong = I
+    Set objFolder = Nothing
+    Set objShell = Nothing
+
+End Sub
