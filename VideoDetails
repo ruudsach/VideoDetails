@@ -1,0 +1,624 @@
+Option Explicit
+
+Const WINDOW_HANDLE = 0
+Const NO_OPTIONS = 0
+Public PublicLong As Long
+Public LastSelectedFolder As String
+
+
+
+Public Sub Create_srt_file(FileName As String, SrtArray As Variant)
+
+Dim ifileno As Integer
+Dim path As String
+Dim t As Double
+Dim t1 As Double
+path = "D:\Users\<username>\Downloads\JDownloaderPortable\Data\downloads\Transcripts\" & FileName
+ifileno = 1
+
+Open path For Output As #ifileno
+'Print #ifileno, "@" & "Echo off"
+'Print #ifileno, "set path f:\share\"
+'Write #ifileno, ' "" 'blank line
+'Write #ifileno, "some more text!"
+Dim index As Long
+For index = 0 To UBound(SrtArray) - 1
+
+t = Split(SrtArray(index), "');" & VBA.Chr(34) & VBA.Chr(62))(0)
+If t = 0 Then
+    t = 0.599
+End If
+
+If index <> UBound(SrtArray) - 1 Then
+Print #ifileno, index + 1
+t1 = Split(SrtArray(index + 1), "');" & VBA.Chr(34) & VBA.Chr(62))(0)
+Print #ifileno, VBA.Format(TimeSerial(0, 0, Fix(t)), "hh:mm:ss") & "," & _
+                Mid(CStr(t - Fix(t)), InStr(1, CStr(t - Fix(t)), ".", vbTextCompare) + 1, 3) _
+                & " --> " & _
+                VBA.Format(TimeSerial(0, 0, Fix(t1)), "hh:mm:ss") & "," & _
+                Mid(CStr(t1 - Fix(t1)), InStr(1, CStr(t1 - Fix(t1)), ".", vbTextCompare) + 1, 3)
+Print #ifileno, Split(SrtArray(index), VBA.Chr(34) & VBA.Chr(62))(1)
+Print #ifileno, ""
+
+ElseIf index = UBound(SrtArray) - 1 Then
+
+Print #ifileno, index + 1
+Print #ifileno, VBA.Format(TimeSerial(0, 0, Fix(t)), "hh:mm:ss") & "," & _
+                Mid(CStr(t - Fix(t)), InStr(1, CStr(t - Fix(t)), ".", vbTextCompare) + 1, 3) _
+                & " --> " & _
+                VBA.Format(TimeSerial(0, 0, Fix(t) + 3), "hh:mm:ss") & "," & _
+                Mid(CStr(t - Fix(t)), InStr(1, CStr(t - Fix(t)), ".", vbTextCompare) + 1, 3)
+Print #ifileno, Split(SrtArray(index), VBA.Chr(34) & VBA.Chr(62))(1)
+Print #ifileno, ""
+
+End If
+
+Next index
+Close #ifileno
+
+End Sub
+
+'=IF(IFERROR(SEARCH("transcript-clip",B2830),0)>1,
+'SUBSTITUTE(RIGHT(B2830,LEN(B2830)-LEN(LEFT(B2830,FIND(">",B2830,FIND("Launch",B2830,1))))),
+'"</a><br>",".srt"),IF(IFERROR(SEARCH("onclick=",B2830)>1,0),
+'SUBSTITUTE(RIGHT(B2830,LEN(B2830)-FIND("data-s",B2830)-7),"</a>",""),""))
+
+Public Sub ActiveSheet_UsedRange()
+
+    Dim UnorderedList As Variant
+    UnorderedList = ActiveSheet.UsedRange
+    
+    Dim SrtArray As Variant
+    Dim SrtLines As Long
+    Dim CurrentFolder As String
+    Dim CurrentFile As String
+    Dim FolderCount As Long
+    Dim FileCount As Long
+    Dim Trimming As Long
+    For Trimming = 1 To UBound(UnorderedList)
+        UnorderedList(Trimming, 1) = VBA.Trim(UnorderedList(Trimming, 1))
+    
+    
+    If VBA.InStr(1, UnorderedList(Trimming, 1), "transcript-clip", vbTextCompare) > 1 Then
+        UnorderedList(Trimming, 1) = Replace( _
+                                        Right(UnorderedList(Trimming, 1), _
+                                        Len(UnorderedList(Trimming, 1)) - _
+                                        InStr(InStr(1, UnorderedList(Trimming, 1), "Launch", vbTextCompare), _
+                                        UnorderedList(Trimming, 1), _
+                                        ">", vbTextCompare)), _
+                                        "</a><br>", ".srt", 1, , vbTextCompare)
+        FileCount = FileCount + 1
+        CurrentFile = CurrentFolder & "\" & PaddingPlusCount(CStr(UnorderedList(Trimming, 1)), FileCount)
+    
+    SrtLines = 0
+    ReDim SrtArray(SrtLines)
+    Trimming = Trimming + 1
+    
+    Do While (Trim(UnorderedList(Trimming, 1)) <> "</div>")
+    
+    If VBA.InStr(1, UnorderedList(Trimming, 1), "ng-click", vbTextCompare) > 1 Then
+        UnorderedList(Trimming, 1) = Replace( _
+                                        Right(UnorderedList(Trimming, 1), _
+                                        Len(UnorderedList(Trimming, 1)) - InStr(1, UnorderedList(Trimming, 1), _
+                                        ";start", vbTextCompare) - 6), "</a>", "", 1, , vbTextCompare)
+        
+        SrtArray(SrtLines) = UnorderedList(Trimming, 1)
+        ReDim Preserve SrtArray(SrtLines + 1)
+        SrtLines = SrtLines + 1
+    End If
+    
+    Trimming = Trimming + 1
+    
+    Loop
+        
+    Create_srt_file CurrentFile, SrtArray
+    Trimming = Trimming - 1
+    
+    ElseIf VBA.InStr(1, UnorderedList(Trimming, 1), "transcript-module", vbTextCompare) > 1 Then
+        UnorderedList(Trimming, 1) = Trim(UnorderedList(Trimming + 1, 1))
+        CurrentFolder = UnorderedList(Trimming, 1)
+        FolderCount = FolderCount + 1
+        CurrentFolder = PaddingPlusCount(CurrentFolder, FolderCount)
+        FileCount = 0
+        CreateDirectory (CurrentFolder)
+    
+    Else
+        UnorderedList(Trimming, 1) = vbNullString
+    
+    End If
+    
+    Next Trimming
+
+End Sub
+
+Public Sub CreateDirectory(FolderName As String)
+    MkDir "D:\Users\<username>\Downloads\JDownloaderPortable\Data\downloads\Transcripts\" & FolderName
+End Sub
+
+Public Function PaddingPlusCount(CurrentFolder As String, ByVal FolderCount As Long) As String
+    
+    If InStr(1, CurrentFolder, ":", vbTextCompare) > 1 Then
+        CurrentFolder = Replace(CurrentFolder, ":", " -", 1, , vbTextCompare)
+    End If
+    If InStr(1, CurrentFolder, "/", vbTextCompare) > 1 Then
+        CurrentFolder = Replace(CurrentFolder, "/", "-", 1, , vbTextCompare)
+    End If
+    If InStr(1, CurrentFolder, "?", vbTextCompare) > 1 Then
+        CurrentFolder = Replace(CurrentFolder, "?", "", 1, , vbTextCompare)
+    End If
+    If InStr(1, CurrentFolder, VBA.Chr(34), vbTextCompare) > 1 Then
+        CurrentFolder = Replace(CurrentFolder, VBA.Chr(34), "'", 1, , vbTextCompare)
+    End If
+    If InStr(1, CurrentFolder, ">", vbTextCompare) > 1 Then
+        CurrentFolder = Replace(CurrentFolder, ">", "]", 1, , vbTextCompare)
+    End If
+    If InStr(1, CurrentFolder, "<", vbTextCompare) > 1 Then
+        CurrentFolder = Replace(CurrentFolder, "<", "[", 1, , vbTextCompare)
+    End If
+    If InStr(1, CurrentFolder, "*", vbTextCompare) > 1 Then
+        CurrentFolder = Replace(CurrentFolder, "*", "+", 1, , vbTextCompare)
+    End If
+    If InStr(1, CurrentFolder, "\", vbTextCompare) > 1 Then
+        CurrentFolder = Replace(CurrentFolder, "\", "-", 1, , vbTextCompare)
+    End If
+    
+    If Len(CStr(FolderCount)) = 1 Then
+        CurrentFolder = "0" & CStr(FolderCount) & "." & CurrentFolder
+    Else
+        CurrentFolder = CStr(FolderCount) & "." & CurrentFolder
+    End If
+    
+    PaddingPlusCount = CurrentFolder
+    
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Public Sub somesub()
+
+
+Dim result As String
+Dim Url As String
+Dim winHttpReq As Object
+Set winHttpReq = CreateObject("WinHttp.WinHttpRequest.5.1")
+
+Url = "http://pluralsight.com/training/Courses"
+winHttpReq.Open "GET", Url, False
+winHttpReq.setRequestHeader "User-Agent", "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0)"
+winHttpReq.setProxy 2, "127.0.0.1:8888", ""
+'winHttpReq.send
+'result = winHttpReq.ResponseText
+'
+'Create_html_file "pluralsight.html", result
+On Error Resume Next
+
+Dim strComputer As String
+Dim objWMIService As Object
+Dim colItems
+
+Const wbemFlagReturnImmediately = &H10
+Const wbemFlagForwardOnly = &H20
+
+strComputer = "."
+Set objWMIService = GetObject("winmgmts:" & "{impersonationLevel=impersonate}!\\" _
+                                & strComputer & "\root\cimv2")
+
+Set colItems = objWMIService.ExecQuery("Select * from Win32_Processor") ', "WQL", wbemFlagReturnImmediately + wbemFlagForwardOnly)
+
+Dim objItem
+For Each objItem In colItems
+    Debug.Print "Proxy Port Number: " & objItem.L2CacheSize
+    Debug.Print "Proxy Server: " & objItem.CurrentVoltage / 10#
+    Debug.Print "Server Name: " & objItem.currentClockSpeed
+Next
+
+Set objWMIService = Nothing
+Set objItem = Nothing
+Set objWMIService = Nothing
+
+Dim colFiles As Object
+Dim objFile As Object
+strComputer = "."
+Set objWMIService = GetObject("winmgmts:" _
+ & "{impersonationLevel=impersonate}!\\" & strComputer & "\root\cimv2")
+
+Set colFiles = objWMIService.ExecQuery _
+                ("SELECT * FROM CIM_Datafile " _
+                & "WHERE Name = 'D:\\Users\\<username>\\Downloads\\JDownloaderPortable\\Data\\downloads\\Web API Design\\01.Introducing Web API Design\\01.Web API Design.wmv'")
+
+For Each objFile In colFiles
+    Debug.Print "Proxy Port Number: " & objItem.L2CacheSize
+    Debug.Print "Proxy Server: " & objItem.CurrentVoltage / 10#
+    Debug.Print "Server Name: " & objItem.currentClockSpeed
+Next
+
+On Error GoTo 0
+
+Dim arrHeaders As Variant
+
+Dim objShell As Object
+Dim objFolder As Object
+Set objShell = CreateObject("Shell.Application")
+Set objFolder = objShell.Namespace("D:\Users\<username>\Downloads\JDownloaderPortable\Data\downloads\Web API Design\01.Introducing Web API Design")
+Dim I As Long
+ReDim arrHeaders(I)
+Do While (objFolder.GetDetailsOf(objFolder.Items, I) <> vbNullString)
+ arrHeaders(I) = objFolder.GetDetailsOf(objFolder.Items, I)
+ Range("A1").Offset(I, 0).Value = I
+ Range("A1").Offset(I, 1).Value = objFolder.GetDetailsOf(objFolder.Items, I)
+ I = I + 1
+ ReDim Preserve arrHeaders(I)
+Loop
+arrHeaders = sortarray(arrHeaders)
+Dim strFileName
+For Each strFileName In objFolder.Items
+ For I = 0 To UBound(arrHeaders)
+' Wscript.Echo i & vbTab & arrHeaders(i) _
+' & ": " & objFolder.GetDetailsOf(strFileName, i)
+ Range("A1").Offset(I, 2).Value = arrHeaders(I)
+ Range("A1").Offset(I, 3).Value = objFolder.GetDetailsOf(strFileName, I)
+Next
+Next
+
+
+End Sub
+Function sortarray(MyArray As Variant) As Variant
+
+    Dim First As Integer
+    Dim Last As Integer
+    Dim I As Integer
+    Dim j As Integer
+    Dim temp As String
+    Dim List As String
+
+    First = LBound(MyArray)
+    Last = UBound(MyArray)
+    For I = First To Last - 1
+        For j = I + 1 To Last
+            If MyArray(I) > MyArray(j) Then
+                temp = MyArray(j)
+                MyArray(j) = MyArray(I)
+                MyArray(I) = temp
+            End If
+        Next j
+    Next I
+
+    sortarray = MyArray
+
+End Function
+Public Sub Create_html_file(FileName As String, ResponseText As String)
+
+Dim ifileno As Integer
+Dim path As String
+Dim t As Double
+Dim t1 As Double
+path = "D:\Users\<username>\Downloads\JDownloaderPortable\Data\downloads\Transcripts\" & FileName
+ifileno = 1
+
+Open path For Output As #ifileno
+Print #ifileno, ResponseText
+Close #ifileno
+
+End Sub
+
+
+'''Public Sub someothersub()
+'''
+'''    Dim strComputer As String
+'''    strComputer = "."
+'''
+'''    Dim objWMIService As Object
+'''    Dim objFSO As Object
+'''    Dim objShell As Object
+'''    Dim objFolder As Object
+'''    Dim objFolderItem As Object
+'''
+'''    Set objWMIService = GetObject("winmgmts:\\" & strComputer & "\root\cimv2")
+'''    Set objFSO = CreateObject("Scripting.FileSystemObject")
+'''    Set objShell = CreateObject("Shell.Application")
+'''    Set objFolder = objShell.BrowseForFolder(WINDOW_HANDLE, "Select a Folder :", NO_OPTIONS, ".")
+'''    Set objFolderItem = objFolder.Self
+'''    Dim strFolderName As String
+'''    strFolderName = objFolderItem.path
+'''
+'''    Dim colSubfolders As Object
+'''    Set colSubfolders = objWMIService.ExecQuery _
+'''    ("Associators of {Win32_Directory.Name='" & strFolderName & "'} " _
+'''    & "Where AssocClass = Win32_Subdirectory " _
+'''    & "ResultRole = PartComponent")
+'''
+'''    'Wscript.Echo strFolderName
+'''
+'''    Dim arrFolderPath As Variant
+'''    arrFolderPath = Split(strFolderName, "\")
+'''    Dim strNewPath As String
+'''    strNewPath = ""
+'''    Dim i As Long
+'''    For i = 1 To UBound(arrFolderPath)
+'''        strNewPath = strNewPath & "\\" & arrFolderPath(i)
+'''    Next
+'''    Dim strPath As String
+'''    strPath = strNewPath & "\\"
+'''
+'''    Dim FilePath As String
+'''    FilePath = VBA.Replace(strFolderName, "\", "\\", 1, , vbTextCompare)
+'''
+'''    Dim colFiles As Object
+'''    Set colFiles = objWMIService.ExecQuery _
+'''    ("Select * from CIM_DataFile where Path = '" & strPath & "'")
+'''
+'''    Dim objFile As Object
+'''    For Each objFile In colFiles
+'''    Dim objReadOnlyFile As Object
+'''    Set objReadOnlyFile = objFSO.Getfile(objFile.Name)
+'''    'Wscript.Echo objFile.Name & chr (10) & objReadOnlyFile.DateLastModified
+'''    If DateDiff("d", objReadOnlyFile.DateLastModified, Date) > 30 Then
+'''
+'''    End If
+'''    Next
+'''
+'''    For Each objFolder In colSubfolders
+'''    GetSubFolders strFolderName
+'''    Next
+'''
+'''End Sub
+'''
+'''Sub GetSubFolders(strFolderName)
+'''
+'''    Dim objWMIService As Object
+'''    Dim colSubfolders2 As Object
+'''    Dim objFSO As Object
+'''
+'''    Dim strComputer As String
+'''
+'''    strComputer = "."
+'''    Set objWMIService = GetObject("winmgmts:\\" & strComputer & "\root\cimv2")
+'''    Set objFSO = CreateObject("Scripting.FileSystemObject")
+'''
+'''    Set colSubfolders2 = objWMIService.ExecQuery _
+'''    ("Associators of {Win32_Directory.Name='" & strFolderName & "'} " _
+'''    & "Where AssocClass = Win32_Subdirectory " _
+'''    & "ResultRole = PartComponent")
+'''
+'''    Dim objFolder2 As Object
+'''    For Each objFolder2 In colSubfolders2
+'''    strFolderName = objFolder2.Name
+'''
+'''
+'''    Dim arrFolderPath As Variant
+'''    arrFolderPath = Split(strFolderName, "\")
+'''    Dim strNewPath As String
+'''    strNewPath = ""
+'''    Dim i As Long
+'''    For i = 1 To UBound(arrFolderPath)
+'''    strNewPath = strNewPath & "\\" & arrFolderPath(i)
+'''    Next i
+'''
+'''    Dim strPath As String
+'''    strPath = strNewPath & "\\"
+'''
+'''    Dim colFiles As Object
+'''    Set colFiles = objWMIService.ExecQuery _
+'''    ("Select * from CIM_DataFile where Path = '" & strPath & "'")
+'''
+'''
+'''    Dim objFile As Object
+'''    Dim objReadOnlyFile As Object
+'''
+'''    For Each objFile In colFiles
+'''    Set objReadOnlyFile = objFSO.Getfile(objFile.Name)
+'''    If DateDiff("d", objReadOnlyFile.DateLastModified, Date) > 15 Then
+'''    'Wscript.Echo objFile.Name & Chr(10) & objReadOnlyFile.DateLastModified
+'''
+'''    End If
+'''
+'''    Next objFile
+'''
+'''    GetSubFolders strFolderName
+'''    Next objFolder2
+'''
+'''End Sub
+
+
+'Public Function SelectFolderPath_toString() As String
+'
+'    Const MY_COMPUTER = &H11&
+'    Const numOPTIONS = &H10&
+'
+'    Dim objFolder As Object
+'    Dim objFolderItem As Object
+'    Dim objShell As Object
+'    Dim strPath As String
+'
+'    Set objShell = CreateObject("Shell.Application")
+'
+'
+'   If UCase(LastSelectedFolder) = "MY COMPUTER" Then
+'        Set objFolder = objShell.Namespace(MY_COMPUTER)
+'        Set objFolderItem = objFolder.Self
+'        strPath = objFolderItem.path
+'    Else
+'        strPath = LastSelectedFolder
+'    End If
+'
+'    Set objFolder = objShell.BrowseForFolder(WINDOW_HANDLE, "Select a Folder :", numOPTIONS, strPath)
+'    Set objFolderItem = objFolder.Self
+'
+'    Dim strFolderName As String
+'    strFolderName = objFolderItem.path
+'
+'    LastSelectedFolder = strFolderName
+'
+'    SelectFolderPath_toString = strFolderName
+'
+'End Function
+Public Function GetLastSelectedDir() As String
+
+    Dim strDir As String
+    On Error Resume Next
+    With Application.FileDialog(msoFileDialogFolderPicker)
+    If LastSelectedFolder <> vbNullString Then
+        .InitialFileName = LastSelectedFolder
+    Else
+        .InitialFileName = "C:\"
+    End If
+        .Show
+        strDir = .SelectedItems(1)
+    End With
+    
+    If Err Then Exit Function
+    On Error GoTo 0
+    
+    LastSelectedFolder = strDir
+    
+    GetLastSelectedDir = strDir
+
+End Function
+Public Function GetAllSubFolders(strFolderName As String) As Object
+
+    Dim objWMIService As Object
+    Dim SubFolders As Object
+    
+    Dim strComputer As String
+    strComputer = "."
+    
+    Set objWMIService = GetObject("winmgmts:\\" & strComputer & "\root\cimv2")
+    
+    Set SubFolders = objWMIService.ExecQuery _
+    ("Associators of {Win32_Directory.Name='" & strFolderName & "'} " _
+    & "Where AssocClass = Win32_Subdirectory " _
+    & "ResultRole = PartComponent")
+
+    Set GetAllSubFolders = SubFolders
+
+End Function
+Public Function UseFolderPath_for_WMI_CIM2(strFolderName As String) As String
+
+    Dim arrFolderPath As Variant
+    arrFolderPath = Split(strFolderName, "\")
+    Dim strNewPath As String
+    strNewPath = ""
+    Dim I As Long
+    For I = 1 To UBound(arrFolderPath)
+        strNewPath = strNewPath & "\\" & arrFolderPath(I)
+    Next
+    Dim strPath As String
+    strPath = strNewPath & "\\"
+    
+    UseFolderPath_for_WMI_CIM2 = strPath
+
+End Function
+Public Sub GetDetailsOf_VideoFiles()
+
+    Worksheets("FolderDetails").Activate
+    Dim ClearRange As Range
+    Set ClearRange = Application.Range(Range("A2"), ActiveSheet.UsedRange.SpecialCells(xlCellTypeLastCell))
+    ClearRange.ClearContents
+
+    Dim objWMIService As Object
+    Dim strComputer As String
+    strComputer = "."
+    
+    Dim Folder As Object
+    Dim VideoFiles As Object
+    Dim VideoFile As Object
+    PublicLong = 0
+    Set objWMIService = GetObject("winmgmts:\\" & strComputer & "\root\cimv2")
+    On Error Resume Next
+    For Each Folder In GetAllSubFolders(GetLastSelectedDir)
+        CallExtendedAttributes Folder.Name, PublicLong
+    Next Folder
+    On Error GoTo 0
+    PublicLong = 0
+    
+End Sub
+
+
+'Public Sub CallExtendedAttributes(VideoFileName As Object, VideoFilePath As String, ByVal i As Long)
+Public Sub CallExtendedAttributes(VideoFilePath As String, ByVal I As Long)
+
+    Dim objShell As Object
+    Dim objFolder As Object
+    Set objShell = CreateObject("Shell.Application")
+    Set objFolder = objShell.Namespace("" & VideoFilePath)
+    
+    Dim intermediateString As String
+    
+    Const ItemType = 2
+    Const PerceivedType = 11
+    Const Kind = 11
+    Const FolderResident = 176
+    Const VideoCompression = 280
+    Const Size = 1
+    Const Length = 27
+    Const Bitrate = 28
+    Const DataRate = 282
+    Const FrameHeight = 283
+    Const FrameWidth = 285
+    Const FrameRate = 284
+    
+    Dim VideoFileName
+    
+    For Each VideoFileName In objFolder.Items
+    
+    If objFolder.GetDetailsOf(VideoFileName, PerceivedType) = "Video" Then
+    Range("A2").Offset(I, 0).Value = objFolder.GetDetailsOf(VideoFileName, 0)
+    Range("A2").Offset(I, 1).Value = objFolder.GetDetailsOf(VideoFileName, Size)
+    Range("A2").Offset(I, 2).Value = objFolder.GetDetailsOf(VideoFileName, Length)
+    Range("A2").Offset(I, 3).Value = objFolder.GetDetailsOf(VideoFileName, Bitrate)
+    intermediateString = objFolder.GetDetailsOf(VideoFileName, DataRate)
+    Range("A2").Offset(I, 4).Value = Mid(intermediateString, 2, Len(intermediateString) - 5)
+    Range("A2").Offset(I, 5).Value = objFolder.GetDetailsOf(VideoFileName, FrameWidth) & "x" & objFolder.GetDetailsOf(VideoFileName, FrameHeight)
+    Range("A2").Offset(I, 6).Value = objFolder.GetDetailsOf(VideoFileName, FrameRate)
+    Range("A2").Offset(I, 7).Value = objFolder.GetDetailsOf(VideoFileName, FolderResident)
+    I = I + 1
+    End If
+    
+    Next VideoFileName
+    
+    PublicLong = I
+    Set objFolder = Nothing
+    Set objShell = Nothing
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
